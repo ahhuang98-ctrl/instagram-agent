@@ -1,0 +1,36 @@
+schedule:
+  mode: cron            # "cron" or "interval"
+  cron:
+    hour: "9,18"        # 9 AM and 6 PM daily
+    minute: "0"
+    timezone: "America/New_York"
+  interval:
+    hours: 6            # used only when mode: interval
+
+posting:
+  post_feed: true
+  post_stories: true
+  story_delay_seconds: 5
+
+image:
+  size_preset: "square_hd"   # square_hd | portrait_4_3 | landscape_16_9
+  enhance_prompt: true
+  num_images: 1
+
+prompts:
+  selection: random    # "random" or "sequential"
+  feed:
+    - image_prompt: "A breathtaking sunrise over misty mountain peaks, cinematic photography, golden hour, 8K"
+      caption: "Every morning is a new beginning. #sunrise #nature #photography"
+    - image_prompt: "Neon-lit Tokyo street at night, rain reflections on asphalt, cyberpunk aesthetic, ultra-detailed"
+      caption: "City lights never sleep. #tokyo #nightphotography #urban"
+    - image_prompt: "Tranquil Zen garden with raked sand patterns, soft diffused light, minimalist, macro"
+      caption: "Find your stillness. #zen #mindfulness #peaceful"
+  stories:
+    - image_prompt: "Vertical format motivational quote background, abstract gradient pastels, clean modern design"
+      caption: ""
+    - image_prompt: "Close-up of steaming coffee cup on wooden table, cozy morning atmosphere, warm tones, bokeh"
+      caption: "Morning ritual. #coffee #mornings"
+
+imgbb:
+  expiration: 0   # 0 = permanent; or seconds until auto-delete (max 15552000)

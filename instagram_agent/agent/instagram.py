@@ -1,0 +1,100 @@
+import os
+
+import requests
+
+from agent.logger import get_logger
+
+logger = get_logger("instagram")
+
+GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
+
+
+class InstagramAPIError(Exception):
+    def __init__(self, message: str, response_data: dict | None = None):
+        super().__init__(message)
+        self.response_data = response_data
+
+
+def _get_credentials() -> tuple[str, str]:
+    return os.environ["INSTAGRAM_USER_ID"], os.environ["INSTAGRAM_ACCESS_TOKEN"]
+
+
+def _create_media_container(
+    ig_user_id: str,
+    access_token: str,
+    image_url: str,
+    caption: str,
+    is_story: bool = False,
+) -> str:
+    endpoint = f"{GRAPH_API_BASE}/{ig_user_id}/media"
+    payload: dict = {"image_url": image_url, "access_token": access_token}
+    if is_story:
+        payload["media_type"] = "STORIES"
+    else:
+        payload["caption"] = caption
+
+    post_type = "Story" if is_story else "Feed"
+    logger.info(f"Creating {post_type} media container...")
+    try:
+        resp = requests.post(endpoint, data=payload, timeout=30)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise InstagramAPIError(f"Container creation request failed: {e}") from e
+
+    result = resp.json()
+    if "error" in result:
+        raise InstagramAPIError(
+            f"Instagram API error: {result['error'].get('message')}",
+            response_data=result,
+        )
+    if "id" not in result:
+        raise InstagramAPIError(
+            f"Container ID missing from response: {result}", response_data=result
+        )
+
+    container_id = result["id"]
+    logger.info(f"{post_type} container created: {container_id}")
+    return container_id
+
+
+def _publish_container(
+    ig_user_id: str, access_token: str, creation_id: str
+) -> str:
+    endpoint = f"{GRAPH_API_BASE}/{ig_user_id}/media_publish"
+    payload = {"creation_id": creation_id, "access_token": access_token}
+
+    logger.info(f"Publishing container {creation_id}...")
+    try:
+        resp = requests.post(endpoint, data=payload, timeout=30)
+        resp.raise_for_status()
+    except requests.RequestException as e:
+        raise InstagramAPIError(f"Publish request failed: {e}") from e
+
+    result = resp.json()
+    if "error" in result:
+        raise InstagramAPIError(
+            f"Instagram publish error: {result['error'].get('message')}",
+            response_data=result,
+        )
+
+    media_id = result["id"]
+    logger.info(f"Published. Media ID: {media_id}")
+    return media_id
+
+
+def post_feed(image_url: str, caption: str) -> str:
+    """Post an image to the Instagram feed. Returns the published media ID."""
+    ig_user_id, access_token = _get_credentials()
+    container_id = _create_media_container(
+        ig_user_id, access_token, image_url, caption, is_story=False
+    )
+    return _publish_container(ig_user_id, access_token, container_id)
+
+
+def post_story(image_url: str, caption: str) -> str:
+    """Post an image as an Instagram Story. Returns the published media ID."""
+    ig_user_id, access_token = _get_credentials()
+    container_id = _create_media_container(
+        ig_user_id, access_token, image_url, caption, is_story=True
+    )
+    return _publish_container(ig_user_id, access_token, container_id)
