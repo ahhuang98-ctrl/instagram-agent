@@ -2,16 +2,18 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Projects
+GitHub repo: `github.com/ahhuang98-ctrl/instagram-agent`
+Local folder: `instagram-agent/`
 
-- `instagram_agent/` — Python agent that auto-posts AI-generated images to Instagram on a schedule
-- `tictactoe.html` — standalone browser game (no build step needed)
+## Project
+
+Python agent that auto-posts AI-generated images to Instagram on a configurable schedule.
 
 ---
 
-## instagram_agent — Setup & Commands
+## Setup & Commands
 
-All commands run from `instagram_agent/` with the venv activated.
+All commands run from the repo root with the venv activated.
 
 ```powershell
 # First-time setup
