@@ -15,6 +15,8 @@ Python agent that auto-posts AI-generated images to Instagram on a configurable 
 
 All commands run from the repo root with the venv activated.
 
+> **Note:** `python` on this machine maps to a Windows Store stub (not a real installation). Python must be installed before the venv setup below will work. As a temporary workaround, the LibreOffice bundled interpreter at `C:\Program Files\LibreOffice\program\python.exe` can run one-off scripts (e.g. the weekly-report generator).
+
 ```powershell
 # First-time setup
 python -m venv venv
@@ -92,3 +94,15 @@ Instagram posting requires a **Business or Creator account** linked to a **Faceb
 ### Logging
 
 Logs go to both console (INFO+) and `logs/agent.log` (DEBUG+, rotating 5 MB × 3 files). The log file captures full stack traces for all errors; the console shows summary lines only.
+
+---
+
+## Claude Code Skills
+
+Slash commands available in `.claude/commands/`:
+
+| Skill | Usage | Description |
+|---|---|---|
+| `/weekly-report` | `/weekly-report 2026-05-11 2026-05-17` | Pulls GitHub commits/PRs/issues for the date range and writes a `.docx` report. Uses LibreOffice Python if standalone Python is unavailable. |
+| `/python-bugfix` | `/python-bugfix <error or description>` | Diagnoses a Python traceback or bug report, finds the root cause, and applies a minimal targeted fix. |
+| `/python-dev` | `/python-dev <task description>` | Writes new Python modules, functions, or scripts following project conventions (type hints, PEP 8, minimal comments). |
