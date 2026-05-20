@@ -1,4 +1,7 @@
+import logging
+
 import fal_client
+from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential
 
 from agent.logger import get_logger
 
@@ -7,6 +10,19 @@ logger = get_logger("image_generator")
 
 class ImageGenerationError(Exception):
     pass
+
+
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=2, max=8),
+    before_sleep=before_sleep_log(logger, logging.WARNING),
+    reraise=True,
+)
+def _call_fal(arguments: dict) -> dict:
+    return fal_client.subscribe(
+        "fal-ai/bytedance/dreamina/v3.1/text-to-image",
+        arguments=arguments,
+    )
 
 
 def generate_image(
@@ -35,10 +51,7 @@ def generate_image(
 
     logger.info(f"Generating image: '{prompt[:80]}...'")
     try:
-        result = fal_client.subscribe(
-            "fal-ai/bytedance/dreamina/v3.1/text-to-image",
-            arguments=arguments,
-        )
+        result = _call_fal(arguments)
     except Exception as e:
         raise ImageGenerationError(f"fal.ai API call failed: {e}") from e
 

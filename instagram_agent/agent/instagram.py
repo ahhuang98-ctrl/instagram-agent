@@ -3,6 +3,7 @@ import os
 import requests
 
 from agent.logger import get_logger
+from agent.retry_utils import http_retry
 
 logger = get_logger("instagram")
 
@@ -17,6 +18,13 @@ class InstagramAPIError(Exception):
 
 def _get_credentials() -> tuple[str, str]:
     return os.environ["INSTAGRAM_USER_ID"], os.environ["INSTAGRAM_ACCESS_TOKEN"]
+
+
+@http_retry(logger)
+def _http_post(url: str, data: dict, timeout: int) -> requests.Response:
+    resp = requests.post(url, data=data, timeout=timeout)
+    resp.raise_for_status()
+    return resp
 
 
 def _create_media_container(
@@ -36,8 +44,7 @@ def _create_media_container(
     post_type = "Story" if is_story else "Feed"
     logger.info(f"Creating {post_type} media container...")
     try:
-        resp = requests.post(endpoint, data=payload, timeout=30)
-        resp.raise_for_status()
+        resp = _http_post(endpoint, data=payload, timeout=30)
     except requests.RequestException as e:
         raise InstagramAPIError(f"Container creation request failed: {e}") from e
 
@@ -65,8 +72,7 @@ def _publish_container(
 
     logger.info(f"Publishing container {creation_id}...")
     try:
-        resp = requests.post(endpoint, data=payload, timeout=30)
-        resp.raise_for_status()
+        resp = _http_post(endpoint, data=payload, timeout=30)
     except requests.RequestException as e:
         raise InstagramAPIError(f"Publish request failed: {e}") from e
 

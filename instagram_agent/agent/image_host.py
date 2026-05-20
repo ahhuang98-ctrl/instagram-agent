@@ -3,6 +3,7 @@ import os
 import requests
 
 from agent.logger import get_logger
+from agent.retry_utils import http_retry
 
 logger = get_logger("image_host")
 
@@ -11,6 +12,13 @@ IMGBB_UPLOAD_URL = "https://api.imgbb.com/1/upload"
 
 class ImageHostingError(Exception):
     pass
+
+
+@http_retry(logger)
+def _http_post(url: str, data: dict, timeout: int) -> requests.Response:
+    resp = requests.post(url, data=data, timeout=timeout)
+    resp.raise_for_status()
+    return resp
 
 
 def upload_image_url_to_imgbb(
@@ -35,8 +43,7 @@ def upload_image_url_to_imgbb(
 
     logger.info(f"Uploading to imgbb from: {image_url[:80]}...")
     try:
-        response = requests.post(IMGBB_UPLOAD_URL, data=payload, timeout=60)
-        response.raise_for_status()
+        response = _http_post(IMGBB_UPLOAD_URL, data=payload, timeout=60)
     except requests.RequestException as e:
         raise ImageHostingError(f"imgbb upload request failed: {e}") from e
 
