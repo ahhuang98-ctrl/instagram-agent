@@ -1,6 +1,5 @@
 import logging
 
-import fal_client
 from tenacity import before_sleep_log, retry, stop_after_attempt, wait_exponential
 
 from agent.logger import get_logger
@@ -19,6 +18,7 @@ class ImageGenerationError(Exception):
     reraise=True,
 )
 def _call_fal(arguments: dict) -> dict:
+    import fal_client
     return fal_client.subscribe(
         "fal-ai/bytedance/dreamina/v3.1/text-to-image",
         arguments=arguments,
@@ -27,6 +27,7 @@ def _call_fal(arguments: dict) -> dict:
 
 def generate_image(
     prompt: str,
+    generator: str = "fal",
     size_preset: str = "square_hd",
     custom_width: int | None = None,
     custom_height: int | None = None,
@@ -34,7 +35,15 @@ def generate_image(
     num_images: int = 1,
     seed: int | None = None,
 ) -> str:
-    """Generate an image via fal.ai Dreamina V3.1 and return its URL."""
+    """Generate an image and return a URL or local file path.
+
+    generator='dreamina_browser' uses browser automation (free, no fal.ai needed).
+    generator='fal' uses the fal.ai API (paid, requires funded FAL_KEY).
+    """
+    if generator == "dreamina_browser":
+        from agent.dreamina_browser import generate_image_dreamina
+        return generate_image_dreamina(prompt)
+
     arguments: dict = {
         "prompt": prompt,
         "enhance_prompt": enhance_prompt,
@@ -49,7 +58,7 @@ def generate_image(
     if seed is not None:
         arguments["seed"] = seed
 
-    logger.info(f"Generating image: '{prompt[:80]}...'")
+    logger.info(f"Generating image via fal.ai: '{prompt[:80]}...'")
     try:
         result = _call_fal(arguments)
     except Exception as e:

@@ -6,7 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from agent.image_generator import ImageGenerationError, generate_image
-from agent.image_host import ImageHostingError, upload_image_url_to_imgbb
+from agent.image_host import ImageHostingError, upload_image_url_to_imgbb, upload_local_image_to_imgbb
 from agent.instagram import InstagramAPIError, post_feed, post_story
 from agent.logger import get_logger
 from agent.prompt_manager import PromptManager
@@ -27,23 +27,35 @@ def run_posting_job() -> None:
     imgbb_cfg = config["imgbb"]
     prompt_manager = PromptManager()
 
+    generator = image_cfg.get("generator", "fal")
+
+    def _host_image(image_result: str, name: str) -> str:
+        if image_result.startswith("http"):
+            return upload_image_url_to_imgbb(
+                image_url=image_result,
+                expiration=imgbb_cfg.get("expiration", 0),
+                name=name,
+            )
+        return upload_local_image_to_imgbb(
+            file_path=image_result,
+            expiration=imgbb_cfg.get("expiration", 0),
+            name=name,
+        )
+
     if posting_cfg.get("post_feed", True):
         try:
             entry = prompt_manager.get_feed_prompt()
             logger.info(f"Feed prompt: {entry['image_prompt'][:80]}")
 
-            fal_url = generate_image(
+            image_result = generate_image(
                 prompt=entry["image_prompt"],
+                generator=generator,
                 size_preset=image_cfg.get("size_preset", "square_hd"),
                 custom_width=image_cfg.get("custom_width"),
                 custom_height=image_cfg.get("custom_height"),
                 enhance_prompt=image_cfg.get("enhance_prompt", True),
             )
-            public_url = upload_image_url_to_imgbb(
-                image_url=fal_url,
-                expiration=imgbb_cfg.get("expiration", 0),
-                name="feed_post",
-            )
+            public_url = _host_image(image_result, "feed_post")
             media_id = post_feed(image_url=public_url, caption=entry["caption"])
             logger.info(f"Feed post published. Media ID: {media_id}")
 
@@ -60,18 +72,15 @@ def run_posting_job() -> None:
             entry = prompt_manager.get_story_prompt()
             logger.info(f"Story prompt: {entry['image_prompt'][:80]}")
 
-            fal_url = generate_image(
+            image_result = generate_image(
                 prompt=entry["image_prompt"],
+                generator=generator,
                 size_preset=image_cfg.get("size_preset", "square_hd"),
                 custom_width=image_cfg.get("custom_width"),
                 custom_height=image_cfg.get("custom_height"),
                 enhance_prompt=image_cfg.get("enhance_prompt", True),
             )
-            public_url = upload_image_url_to_imgbb(
-                image_url=fal_url,
-                expiration=imgbb_cfg.get("expiration", 0),
-                name="story_post",
-            )
+            public_url = _host_image(image_result, "story_post")
             media_id = post_story(image_url=public_url, caption=entry["caption"])
             logger.info(f"Story published. Media ID: {media_id}")
 

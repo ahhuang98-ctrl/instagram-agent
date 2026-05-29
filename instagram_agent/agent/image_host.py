@@ -1,6 +1,9 @@
+import base64
+import io
 import os
 
 import requests
+from PIL import Image
 
 from agent.logger import get_logger
 from agent.retry_utils import http_retry
@@ -42,6 +45,51 @@ def upload_image_url_to_imgbb(
         payload["name"] = name
 
     logger.info(f"Uploading to imgbb from: {image_url[:80]}...")
+    try:
+        response = _http_post(IMGBB_UPLOAD_URL, data=payload, timeout=60)
+    except requests.RequestException as e:
+        raise ImageHostingError(f"imgbb upload request failed: {e}") from e
+
+    data = response.json()
+    if not data.get("success"):
+        raise ImageHostingError(
+            f"imgbb reported failure. Status {data.get('status')}: {data}"
+        )
+
+    public_url = data["data"]["url"]
+    logger.info(f"Image hosted at: {public_url}")
+    return public_url
+
+
+def _to_jpeg_bytes(file_path: str) -> bytes:
+    """Return JPEG bytes for any image file, converting from WebP/PNG if needed."""
+    with Image.open(file_path) as img:
+        if img.format == "JPEG":
+            with open(file_path, "rb") as f:
+                return f.read()
+        buf = io.BytesIO()
+        img.convert("RGB").save(buf, format="JPEG", quality=95)
+        return buf.getvalue()
+
+
+def upload_local_image_to_imgbb(
+    file_path: str,
+    expiration: int = 0,
+    name: str | None = None,
+) -> str:
+    """Upload a local image file to imgbb via base64 encoding and return the permanent public URL."""
+    api_key = os.environ["IMGBB_API_KEY"]
+
+    image_bytes = _to_jpeg_bytes(file_path)
+    encoded = base64.b64encode(image_bytes).decode("utf-8")
+
+    payload: dict = {"key": api_key, "image": encoded}
+    if expiration:
+        payload["expiration"] = expiration
+    if name:
+        payload["name"] = name
+
+    logger.info(f"Uploading local image to imgbb: {file_path}")
     try:
         response = _http_post(IMGBB_UPLOAD_URL, data=payload, timeout=60)
     except requests.RequestException as e:

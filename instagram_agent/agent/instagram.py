@@ -7,7 +7,7 @@ from agent.retry_utils import http_retry
 
 logger = get_logger("instagram")
 
-GRAPH_API_BASE = "https://graph.facebook.com/v21.0"
+GRAPH_API_BASE = "https://graph.facebook.com/v25.0"
 
 
 class InstagramAPIError(Exception):
@@ -23,7 +23,9 @@ def _get_credentials() -> tuple[str, str]:
 @http_retry(logger)
 def _http_post(url: str, data: dict, timeout: int) -> requests.Response:
     resp = requests.post(url, data=data, timeout=timeout)
-    resp.raise_for_status()
+    if not resp.ok:
+        logger.error(f"API error {resp.status_code}: {resp.text[:500]}")
+        resp.raise_for_status()
     return resp
 
 

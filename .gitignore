@@ -14,6 +14,15 @@ build/
 # Runtime logs
 instagram_agent/logs/
 
+# Browser session (contains cookies/credentials — never commit)
+instagram_agent/browser_profile/
+
+# Downloaded images from browser agent (generated artifacts)
+instagram_agent/downloads/
+
+# Claude Code skills and local settings
+.claude/
+
 # OS
 .DS_Store
 Thumbs.db

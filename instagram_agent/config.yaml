@@ -1,11 +1,11 @@
 schedule:
-  mode: cron            # "cron" or "interval"
+  mode: interval        # "cron" or "interval"
   cron:
-    hour: "9,18"        # 9 AM and 6 PM daily
+    hour: "9"           # 9 AM daily
     minute: "0"
     timezone: "America/New_York"
   interval:
-    hours: 6            # used only when mode: interval
+    minutes: 1          # used only when mode: interval
 
 posting:
   post_feed: true
@@ -13,8 +13,9 @@ posting:
   story_delay_seconds: 5
 
 image:
-  size_preset: "square_hd"   # square_hd | portrait_4_3 | landscape_16_9
-  enhance_prompt: true
+  generator: "dreamina_browser"   # "dreamina_browser" | "leonardo" | "fal"
+  size_preset: "square_hd"        # used only when generator=fal
+  enhance_prompt: true             # used only when generator=fal
   num_images: 1
 
 prompts:

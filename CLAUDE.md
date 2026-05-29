@@ -13,30 +13,37 @@ Python agent that auto-posts AI-generated images to Instagram on a configurable 
 
 ## Setup & Commands
 
-All commands run from the repo root with the venv activated.
+All agent commands run from `instagram_agent/` (not repo root) because `main.py` opens `config.yaml` via a relative path. The venv lives at the repo root.
 
 > **Note:** `python` on this machine maps to a Windows Store stub (not a real installation). Python must be installed before the venv setup below will work. As a temporary workaround, the LibreOffice bundled interpreter at `C:\Program Files\LibreOffice\program\python.exe` can run one-off scripts (e.g. the weekly-report generator).
 
 ```powershell
-# First-time setup
+# First-time setup (run from repo root)
 python -m venv venv
 venv\Scripts\activate
-pip install -r requirements.txt
+
+# Install packages — browser-use==0.10.1 in requirements.txt pins aiohttp==3.12.15
+# which has no prebuilt Windows wheel and fails to build without MSVC.
+# Install core packages first, then browser-use at a newer version:
+pip install fal-client requests APScheduler python-dotenv PyYAML pytz tenacity
+pip install "browser-use>=0.11.0" "playwright>=1.40.0" langchain-anthropic
+
+# Install the Playwright browser (required for dreamina_browser generator)
+python -m playwright install chromium
 
 # Copy and fill in secrets
 copy .env.example .env
 
-# Run the agent (blocking — waits for scheduled trigger)
+# Run the agent (blocking — waits for scheduled trigger; run from instagram_agent/)
+cd instagram_agent
 python main.py
 
-# Smoke-test a single posting run without the scheduler
+# Run a single posting job without the scheduler (from instagram_agent/)
 python -c "
 from dotenv import load_dotenv; load_dotenv()
-from agent.image_generator import generate_image
-from agent.image_host import upload_image_url_to_imgbb
-from agent.instagram import post_feed
-url = upload_image_url_to_imgbb(generate_image('a sunset over the ocean'))
-print(post_feed(url, 'test post'))
+import sys; sys.path.insert(0, '.')
+from main import run_posting_job
+run_posting_job()
 "
 ```
 
@@ -50,18 +57,23 @@ To trigger the job immediately without waiting for the cron time, temporarily se
 
 ```
 PromptManager (config.yaml)
-  → generate_image()      fal.ai Dreamina V3.1  → temporary URL
-  → upload_image_url_to_imgbb()  imgbb.com       → permanent public URL
-  → post_feed() / post_story()   Instagram Graph API v21.0
+  → generate_image()      dreamina_browser (Playwright) → local file path
+                       OR fal.ai Dreamina V3.1          → temporary URL
+  → upload_*_to_imgbb()  imgbb.com  → permanent public URL
+  → post_feed() / post_story()   Instagram Graph API v25.0
 ```
 
-The imgbb re-hosting step is mandatory: Instagram's Graph API fetches the image asynchronously from the URL you supply, and fal.ai temporary URLs expire before Instagram completes the fetch.
+The imgbb re-hosting step is mandatory: Instagram's Graph API fetches the image asynchronously from the URL you supply, and source URLs (fal.ai temp URLs, Dreamina CDN) expire or are auth-gated before Instagram completes the fetch.
+
+**Active generator:** `dreamina_browser` (set in `config.yaml`). The `fal` generator requires a funded fal.ai account (balance was exhausted as of 2026-05-29).
+
+**Known issue — WebP:** `dreamina_browser` sometimes downloads the image as `.webp`. Instagram rejects WebP with error 9004. The image host module needs to convert WebP → JPEG before uploading.
 
 ### Key architectural decisions
 
 **`config.yaml` is re-read on every job run** (`main.py:22`). You can edit prompts, captions, or toggle `post_feed`/`post_stories` while the agent is running without restarting it.
 
-**`load_dotenv()` must be called before any `agent.*` import** (`main.py:6`). `fal_client` reads `FAL_KEY` from the environment on module load, so the import order matters.
+**`load_dotenv()` must be called before any `agent.*` import** (`main.py:6`). `fal_client` reads `FAL_KEY` from the environment on module load, so the import order matters. The `dreamina_browser` generator reads credentials lazily (`os.environ[...]` at call time), so it's less sensitive to order, but calling `load_dotenv()` first is still required.
 
 **Feed and story failures are independent** — each is wrapped in its own try/except in `run_posting_job()`. A failed feed post does not prevent the story from being attempted.
 
@@ -75,12 +87,15 @@ Stories use the same flow with `media_type=STORIES` added to step 1. Captions ar
 
 ### Required environment variables
 
-| Variable | Source |
-|---|---|
-| `FAL_KEY` | fal.ai Dashboard → API Keys |
-| `IMGBB_API_KEY` | api.imgbb.com (free account) |
-| `INSTAGRAM_USER_ID` | Graph API Explorer: `GET /{page-id}?fields=instagram_business_account` |
-| `INSTAGRAM_ACCESS_TOKEN` | Long-lived Page access token (expires every 60 days) |
+| Variable | Source | Required for |
+|---|---|---|
+| `IMGBB_API_KEY` | api.imgbb.com (free account) | all generators |
+| `INSTAGRAM_USER_ID` | Graph API Explorer: `GET /{page-id}?fields=instagram_business_account` | posting |
+| `INSTAGRAM_ACCESS_TOKEN` | Long-lived Page access token (expires every 60 days) | posting |
+| `DREAMINA_EMAIL` | CapCut/Dreamina account email | `generator: dreamina_browser` |
+| `DREAMINA_PASSWORD` | CapCut/Dreamina account password | `generator: dreamina_browser` |
+| `ANTHROPIC_API_KEY` | console.anthropic.com → API Keys | `generator: dreamina_browser` (LLM for browser agent) |
+| `FAL_KEY` | fal.ai Dashboard → API Keys | `generator: fal` only (inactive — balance exhausted) |
 
 Instagram posting requires a **Business or Creator account** linked to a **Facebook Page**. Personal accounts are not supported by the Graph API. Required token scopes: `instagram_basic`, `instagram_content_publish`, `pages_show_list`, `pages_read_engagement`.
 
