@@ -34,17 +34,11 @@ def _create_media_container(
     access_token: str,
     image_url: str,
     caption: str,
-    is_story: bool = False,
 ) -> str:
     endpoint = f"{GRAPH_API_BASE}/{ig_user_id}/media"
-    payload: dict = {"image_url": image_url, "access_token": access_token}
-    if is_story:
-        payload["media_type"] = "STORIES"
-    else:
-        payload["caption"] = caption
+    payload: dict = {"image_url": image_url, "access_token": access_token, "caption": caption}
 
-    post_type = "Story" if is_story else "Feed"
-    logger.info(f"Creating {post_type} media container...")
+    logger.info("Creating Feed media container...")
     try:
         resp = _http_post(endpoint, data=payload, timeout=30)
     except requests.RequestException as e:
@@ -62,7 +56,7 @@ def _create_media_container(
         )
 
     container_id = result["id"]
-    logger.info(f"{post_type} container created: {container_id}")
+    logger.info(f"Feed container created: {container_id}")
     return container_id
 
 
@@ -93,16 +87,5 @@ def _publish_container(
 def post_feed(image_url: str, caption: str) -> str:
     """Post an image to the Instagram feed. Returns the published media ID."""
     ig_user_id, access_token = _get_credentials()
-    container_id = _create_media_container(
-        ig_user_id, access_token, image_url, caption, is_story=False
-    )
-    return _publish_container(ig_user_id, access_token, container_id)
-
-
-def post_story(image_url: str, caption: str) -> str:
-    """Post an image as an Instagram Story. Returns the published media ID."""
-    ig_user_id, access_token = _get_credentials()
-    container_id = _create_media_container(
-        ig_user_id, access_token, image_url, caption, is_story=True
-    )
+    container_id = _create_media_container(ig_user_id, access_token, image_url, caption)
     return _publish_container(ig_user_id, access_token, container_id)

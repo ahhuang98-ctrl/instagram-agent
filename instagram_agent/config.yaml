@@ -9,8 +9,6 @@ schedule:
 
 posting:
   post_feed: true
-  post_stories: true
-  story_delay_seconds: 5
 
 image:
   generator: "dreamina_browser"   # "dreamina_browser" | "leonardo" | "fal"
@@ -27,11 +25,6 @@ prompts:
       caption: "City lights never sleep. #tokyo #nightphotography #urban"
     - image_prompt: "Tranquil Zen garden with raked sand patterns, soft diffused light, minimalist, macro"
       caption: "Find your stillness. #zen #mindfulness #peaceful"
-  stories:
-    - image_prompt: "Vertical format motivational quote background, abstract gradient pastels, clean modern design"
-      caption: ""
-    - image_prompt: "Close-up of steaming coffee cup on wooden table, cozy morning atmosphere, warm tones, bokeh"
-      caption: "Morning ritual. #coffee #mornings"
 
 imgbb:
   expiration: 0   # 0 = permanent; or seconds until auto-delete (max 15552000)
