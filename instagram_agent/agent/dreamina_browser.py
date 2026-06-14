@@ -36,20 +36,11 @@ async def _generate_image_via_browser(prompt: str) -> str:
         f"Once on the image generation page, confirm 'AI Image' mode is selected (not AI Video). "
         f"If AI Video is shown, click the mode selector and choose 'AI Image'. "
         f"Click the prompt text input at the bottom, clear any existing text, then type exactly: {prompt!r}. "
-        f"Click the Generate button and wait up to 90 seconds for images to appear in the grid. "
-        f"Once the images are fully visible, hover over the FIRST generated image to reveal the "
-        f"download icon (arrow-down button). Click that download icon to download the full-resolution image. "
-        f"If hovering does not reveal a download button, click the first image to open it in a larger view, "
-        f"then look for a download button in that view and click it. "
-        f"If neither approach produces a download, fall back to execute_javascript with: "
-        f"(function(){{"
-        f"var imgs=Array.from(document.querySelectorAll('img'))"
-        f".filter(i=>i.naturalWidth>200&&i.src&&!i.src.startsWith('data:'))"
-        f".sort((a,b)=>b.naturalWidth*b.naturalHeight-a.naturalWidth*a.naturalHeight);"
-        f"var src=imgs[0].src;"
-        f"fetch(src).then(r=>r.blob()).then(b=>{{var u=URL.createObjectURL(b);"
-        f"var a=document.createElement('a');a.href=u;a.download='dreamina_image.jpg';a.click();}});"
-        f"}})()"
+        f"Click the Generate button and wait up to 90 seconds for the images to appear in the grid. "
+        f"Once the generated images are fully visible, scroll to the bottom of the prompt input area "
+        f"to ensure the latest generated image is in view. "
+        f"Hover over the FIRST (most recent) image in the grid to reveal the download icon, "
+        f"then click that download icon to save the image."
     )
 
     logger.info(f"Starting browser agent for prompt: '{prompt[:80]}...'")
@@ -68,15 +59,13 @@ async def _generate_image_via_browser(prompt: str) -> str:
     )
     await agent.run()
 
-    # Prefer files created during this agent run; fall back to newest overall.
     all_image_files = [f for f in DOWNLOADS_DIR.iterdir() if f.suffix.lower() in _IMAGE_SUFFIXES]
     new_files = [f for f in all_image_files if f not in existing_files]
 
-    candidates = new_files if new_files else all_image_files
-    if not candidates:
-        raise ImageGenerationError("Browser agent ran but no image file found in downloads folder.")
+    if not new_files:
+        raise ImageGenerationError("Browser agent ran but no new image file was downloaded.")
 
-    path = str(sorted(candidates, key=lambda f: f.stat().st_mtime, reverse=True)[0])
+    path = str(sorted(new_files, key=lambda f: f.stat().st_mtime, reverse=True)[0])
     logger.info(f"Image downloaded to: {path}")
     return path
 
