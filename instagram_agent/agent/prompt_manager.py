@@ -20,7 +20,7 @@ class PromptManager:
 
         self.strategy: str = config["prompts"]["selection"]
         self.feed_prompts: list[PromptEntry] = config["prompts"]["feed"]
-        self.story_prompts: list[PromptEntry] = config["prompts"]["stories"]
+        self.story_prompts: list[PromptEntry] = config["prompts"].get("stories", [])
         self._feed_index = 0
         self._story_index = 0
 
