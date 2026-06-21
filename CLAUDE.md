@@ -25,11 +25,11 @@ venv\Scripts\activate
 # Install packages — browser-use==0.10.1 in requirements.txt pins aiohttp==3.12.15
 # which has no prebuilt Windows wheel and fails to build without MSVC.
 # Install core packages first, then browser-use at a newer version:
-pip install fal-client requests APScheduler python-dotenv PyYAML pytz tenacity
-pip install "browser-use>=0.11.0" "playwright>=1.40.0" langchain-anthropic
+pip install fal-client requests APScheduler python-dotenv PyYAML pytz tenacity pillow
+pip install "browser-use>=0.11.0"
 
-# Install the Playwright browser (required for dreamina_browser generator)
-python -m playwright install chromium
+# Install the browser-use Chromium browser (NOT the playwright CLI browser)
+python -m browser_use.install_browser
 
 # Copy and fill in secrets
 copy .env.example .env
@@ -57,17 +57,19 @@ To trigger the job immediately without waiting for the cron time, temporarily se
 
 ```
 PromptManager (config.yaml)
-  → generate_image()      dreamina_browser (Playwright) → local file path
-                       OR fal.ai Dreamina V3.1          → temporary URL
+  → generate_image()      dreamina_browser (browser-use + CDP) → local file path
+                       OR fal.ai Dreamina V3.1                 → temporary URL
   → upload_*_to_imgbb()  imgbb.com  → permanent public URL
-  → post_feed() / post_story()   Instagram Graph API v25.0
+  → post_feed()          Instagram Graph API v25.0
 ```
 
 The imgbb re-hosting step is mandatory: Instagram's Graph API fetches the image asynchronously from the URL you supply, and source URLs (fal.ai temp URLs, Dreamina CDN) expire or are auth-gated before Instagram completes the fetch.
 
 **Active generator:** `dreamina_browser` (set in `config.yaml`). The `fal` generator requires a funded fal.ai account (balance was exhausted as of 2026-05-29).
 
-**Known issue — WebP:** `dreamina_browser` sometimes downloads the image as `.webp`. Instagram rejects WebP with error 9004. The image host module needs to convert WebP → JPEG before uploading.
+**`dreamina_browser` download mechanism:** After the browser agent confirms images are visible in the Dreamina grid, `page.evaluate()` scrapes all `ibyteimg.com` `<img>` src URLs from the DOM, sorts them by intrinsic pixel area (largest first), then downloads the highest-resolution image via Python `requests`. WebP images are automatically converted to JPEG via Pillow before upload. This avoids relying on the browser's download button (which is unreliable in browser-use).
+
+**browser-use LLM import:** `dreamina_browser` uses `browser_use.llm.anthropic.chat.ChatAnthropic`, not `langchain_anthropic.ChatAnthropic`. The browser-use version checks `llm.provider` internally; only its own wrapper exposes that attribute.
 
 ### Key architectural decisions
 
